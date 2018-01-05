@@ -7,7 +7,14 @@ from matplotlib import pyplot as plt
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video", help="path to the video file")
 args = vars(ap.parse_args())
+K = np.ndarray(shape=(3,3), dtype=float, order='F')
 
+# K[0] = [1.00000000e+00, 0.00000000e+00, 9.08774579e-27]
+# K[1] = [0.00000000e+00, 1.00000000e+00, 7.42356692e-27]
+# K[2] = [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
+K[0] = [1.00000000e+00, 0.00000000e+00, 320.00000000e+00]
+K[1] = [0.00000000e+00, 1.00000000e+00, 240.00000000e+00]
+K[2] = [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
 if args.get("video", None) is None:
   print("no video founded")
   camera = 0
@@ -17,14 +24,15 @@ else:
   camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
   camera.set(cv2.CAP_PROP_FPS, 1)
 
-  print("opencv version "+cv2.__version__)
+print("opencv version "+cv2.__version__)
 
 
 (grabbed, current_frame) = camera.read()
 #cv2.resize(current_frame, current_frame, cv2.Size(640, 360), 0, 0, cv2.INTER_CUBIC)
 
 previous_frame = current_frame
-fgbg = cv2.createBackgroundSubtractorMOG2(20,250, False)
+fgbg = cv2.createBackgroundSubtractorMOG2(20, 250, False)
+
 
 with open("/home/francesco/Desktop/medical_robotics/dataset/Suturing/kinematics/AllGestures/Suturing_B001.txt") as f:
   content = f.readlines()
@@ -46,22 +54,34 @@ i = 0
 while camera != 0:
 
   if not grabbed:
+    print("FRAME NOT GRABBED")
     break
+
+
+
+  # print(myTrainData[i])
 
   predictList = []
   predictList.append(myTrainData[i])
   predictList = np.array(predictList)
   a = model1.predict(predictList)
-  cv2.circle(current_frame, (a[0][0],a[0][1]), 3, (0,255,0))
+
+  point=np.dot(K,predictList.transpose())
+  point[0] = point[0] / point[2]
+  point[1] = point[1] / point[2]
+  print(point)
+  cv2.circle(current_frame, (point[0],point[1]), 3, (0,255,0))
   #print(a)
 
   i = i+1
+
+
 
   current_frame_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
   previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
 
   fgmask = fgbg.apply(current_frame)
-  cv2.imshow("cazzoo",fgmask)
+  #cv2.imshow("cazzoo",fgmask)
 
   '''
   aperture = 3
