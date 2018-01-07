@@ -69,6 +69,9 @@ while camera != 0:
   point=np.dot(K,predictList.transpose())
   point[0] = point[0] / point[2]
   point[1] = point[1] / point[2]
+  print("3d")
+  print(predictList)
+  print("\npoint")
   print(point)
   cv2.circle(current_frame, (point[0],point[1]), 3, (0,255,0))
   #print(a)
