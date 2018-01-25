@@ -1,20 +1,34 @@
 import numpy as np
 import argparse
 import cv2
-from keras.models import load_model
-from matplotlib import pyplot as plt
+# from keras.models import load_model
+# from matplotlib import pyplot as plt
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video", help="path to the video file")
 args = vars(ap.parse_args())
 K = np.ndarray(shape=(3,3), dtype=float, order='F')
 
-# K[0] = [1.00000000e+00, 0.00000000e+00, 9.08774579e-27]
-# K[1] = [0.00000000e+00, 1.00000000e+00, 7.42356692e-27]
-# K[2] = [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-K[0] = [1.00000000e+00, 0.00000000e+00, 320.00000000e+00]
-K[1] = [0.00000000e+00, 1.00000000e+00, 240.00000000e+00]
-K[2] = [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
+
+def nothing(x):
+  pass
+
+cv2.namedWindow('image')
+# create trackbars for color change
+cv2.createTrackbar('Hm','image',0,255,nothing)
+cv2.createTrackbar('HM','image',0,255,nothing)
+cv2.createTrackbar('Sm','image',0,255,nothing)
+cv2.createTrackbar('SM','image',0,255,nothing)
+cv2.createTrackbar('Vm','image',0,255,nothing)
+cv2.createTrackbar('VM','image',0,255,nothing)
+
+cv2.setTrackbarPos('Hm', 'image',0)
+cv2.setTrackbarPos('HM', 'image',51)
+cv2.setTrackbarPos('Sm', 'image',11)
+cv2.setTrackbarPos('SM', 'image',198)
+cv2.setTrackbarPos('Vm', 'image',65)
+cv2.setTrackbarPos('VM', 'image',86)
+
 if args.get("video", None) is None:
   print("no video founded")
   camera = 0
@@ -26,30 +40,11 @@ else:
 
 print("opencv version "+cv2.__version__)
 
-
 (grabbed, current_frame) = camera.read()
-#cv2.resize(current_frame, current_frame, cv2.Size(640, 360), 0, 0, cv2.INTER_CUBIC)
 
 previous_frame = current_frame
-fgbg = cv2.createBackgroundSubtractorMOG2(20, 250, False)
 
-
-with open("/home/francesco/Desktop/medical_robotics/dataset/Suturing/kinematics/AllGestures/Suturing_B001.txt") as f:
-  content = f.readlines()
-model1 = load_model("/home/francesco/Downloads/rete_medical_2.h5")
-myTrainData = []
-for i in range(len(content)):
-  content[i] = content[i].replace("\n", "")
-  content[i] = content[i].split(" ")
-
-  while (content[i].count("") != 0):
-    content[i].remove("")
-  content[i] = content[i][0:3]
-  for k in range(len(content[i])):
-    content[i][k] = float(content[i][k])
-  myTrainData.append(np.asarray(content[i]))
-myTrainData = np.array(myTrainData)
-i = 0
+first = True
 
 while camera != 0:
 
@@ -57,68 +52,61 @@ while camera != 0:
     print("FRAME NOT GRABBED")
     break
 
+  hsv = cv2.cvtColor(current_frame, cv2.COLOR_BGR2HSV)
+
+  #get current positions of four trackbars
+  hm = cv2.getTrackbarPos('Hm', 'image')
+  hM = cv2.getTrackbarPos('HM', 'image')
+  sm = cv2.getTrackbarPos('Sm', 'image')
+  sM = cv2.getTrackbarPos('SM', 'image')
+  vm = cv2.getTrackbarPos('Vm', 'image')
+  vM = cv2.getTrackbarPos('VM', 'image')
+
+  lower_range = np.array([hm, sm, vm], dtype=np.uint8)
+  upper_range = np.array([hM, sM, vM], dtype=np.uint8)
+
+  current_frame_gray = cv2.inRange(hsv, lower_range, upper_range)
+
+  # #img moments
+  # ret, thresh = cv2.threshold(current_frame_gray, 127, 255, 0)
+  # contours = cv2.findContours(thresh, 1, 2)
+  # cnt = contours[0]
+  # M = cv2.moments(cnt)
+  # print M
+  #
+  # cx = int(M['m10'] / M['m00'])
+  # cy = int(M['m01'] / M['m00'])
+  # area = cv2.contourArea(cnt)
+  # perimeter = cv2.arcLength(cnt, True)
+  # epsilon = 0.1 * cv2.arcLength(cnt, True)
+  # approx = cv2.approxPolyDP(cnt, epsilon, True)
 
 
-  # print(myTrainData[i])
+  cv2.imshow('mask', current_frame_gray)
 
-  predictList = []
-  predictList.append(myTrainData[i])
-  predictList = np.array(predictList)
-  a = model1.predict(predictList)
-
-  point=np.dot(K,predictList.transpose())
-  point[0] = point[0] / point[2]
-  point[1] = point[1] / point[2]
-  print("3d")
-  print(predictList)
-  print("\npoint")
-  print(point)
-  cv2.circle(current_frame, (point[0],point[1]), 3, (0,255,0))
-  #print(a)
-
-  i = i+1
-
-
-
+  '''
+  if(first):
+    current_frame_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+    previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
+    first = False
+  '''
   current_frame_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
   previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-
-  fgmask = fgbg.apply(current_frame)
-  #cv2.imshow("cazzoo",fgmask)
-
-  '''
-  aperture = 3
-
-  #dst = current_frame_gray
-  dst = cv2.Laplacian(current_frame, cv2.CV_64F, 3)
-
-  gray = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
-  thresholded = current_frame
-
-  cv2.imshow('gray ', gray)
-  '''
-
-  '''
-  sobelx = cv2.Sobel(current_frame_gray, cv2.CV_32F, 1, 0, ksize=5)
-  sobely = cv2.Sobel(current_frame_gray, cv2.CV_32F, 0, 1, ksize=5)
-  mag, angle = cv2.cartToPolar(sobelx, sobely, angleInDegrees=True)
-  cv2.imshow('mag ', mag)
-  cv2.imshow('angle ', angle)
-  cv2.imshow('sobel x ', sobelx)
-  cv2.imshow('sobel y ', sobely)
-  '''
 
 
   frame_diff = cv2.absdiff(current_frame_gray, previous_frame_gray)
 
-  #cv2.imshow('frame diff ', frame_diff)
-  cv2.imshow('original frame ', current_frame)
+  edges = cv2.Canny(frame_diff, 100, 200)
+  cv2.imshow('frame diff', frame_diff)
+  cv2.imshow('edges', edges)
+  cv2.imshow('original frame', current_frame)
 
   cv2.waitKey(0)
 
   if cv2.waitKey(1) & 0xFF == ord('q'):
     break
 
+  #previous_frame_gray = current_frame_gray.copy()
   previous_frame = current_frame.copy()
 
   grabbed, current_frame = camera.read()

@@ -57,7 +57,7 @@ for i in range(len(content3d)):
   points3d.append(pt)
 objpoints = np.array(points3d)
 
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera([objpoints], [imgpoints], (640,480) ,None,None,flags=cv2.CALIB_USE_INTRINSIC_GUESS)
+ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera([objpoints], [imgpoints], (640,480), None, None) #, flags=cv2.CALIB_USE_INTRINSIC_GUESS)
 print(mtx)
 # p
 # rint(dist)
