@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 import cv2
 import imutils
-
+import fitEllipse as elps
 # from keras.models import load_model
 # from matplotlib import pyplot as plt
 
@@ -71,25 +71,37 @@ while camera != 0:
   right_ef = [10000,1000]
   left_ef = [-1,-1]
 
-  extTop = tuple(c[c[:, :, 1].argmin()][0])
-  extBot = tuple(c[c[:, :, 1].argmax()][0])
-
   left = c[:c[:, :, 1].argmax()+1,0,:]
+  lx = np.array([])
+  ly = np.array([])
   right = c[c[:, :, 1].argmax():,0,:]
-
+  rx = np.array([])
+  ry = np.array([])
 
   for p in range(len(left)): 
     if not((left[p][1]>=top[1]-threshold_px  and left[p][1]<=top[1]+threshold_px) or (left[p][1]>=bot[1]-threshold_px)):
+      lx=np.append(lx,left[p][0])
+      ly=np.append(ly,left[p][1])
       if(left[p][0] >= left_ef[0]):
         left_ef=left[p]
 
   for p in range(len(right)): 
     if not(((right[p][1]>=top[1]-threshold_px  and right[p][1]<=top[1]+threshold_px) or (right[p][1]>=bot[1]-threshold_px))):
+      rx=np.append(rx,right[p][0])
+      ry=np.append(ry,right[p][1])
       if(right[p][0] <= right_ef[0]):
         right_ef=right[p]
 
   left_ef = tuple([left_ef[0],left_ef[1]])
   right_ef = tuple([right_ef[0],right_ef[1]])
+
+  ellipse=elps.fitEllipse(rx,ry)
+  center = elps.ellipse_center(ellipse)
+  phi = elps.ellipse_angle_of_rotation2(ellipse)
+  axes = elps.ellipse_axis_length(ellipse)
+  center = tuple([int(center[0]),int(center[1])])
+  print ellipse
+  #cv2.drawContours(current_frame, [ellipse], -1, (255, 255, 0), 2)
 
   #extLeft = tuple(c[c[:, :, 0].argmax()][0])
 
@@ -140,11 +152,13 @@ while camera != 0:
 
   cv2.circle(current_frame, right_ef, 8, (0, 0, 255), -1)
   cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
+  #cv2.circle(current_frame, center, 8, (255, 255, 0), -1)
+
   cv2.imshow('original frame', current_frame)
   #cv2.imshow('left', roi_l)
   #cv2.imshow('right', roi_r)
 
-  cv2.waitKey(1)
+  cv2.waitKey(0)
 
   if cv2.waitKey(1) & 0xFF == ord('q'):
     break
