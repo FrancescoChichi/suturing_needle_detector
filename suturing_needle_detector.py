@@ -16,12 +16,12 @@ threshold_px = 50
 def nothing(x):
   pass
 
-def getContour(img_gray):
+def getContour(img_gray,a=100):
   gray = cv2.GaussianBlur(img_gray, (5, 5), 0)
  
   # threshold the image, then perform a series of erosions +
   # dilations to remove any small regions of noise
-  thresh = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)[1]
+  thresh = cv2.threshold(gray, a, 255, cv2.THRESH_BINARY)[1]
   thresh = cv2.erode(thresh, None, iterations=2)
   thresh = cv2.dilate(thresh, None, iterations=2)
    
@@ -33,22 +33,6 @@ def getContour(img_gray):
   cnts = cnts[0] if imutils.is_cv2() else cnts[1]
   return max(cnts, key=cv2.contourArea)
 
-
-cv2.namedWindow('image')
-# create trackbars for color change
-cv2.createTrackbar('Hm','image',0,255,nothing)
-cv2.createTrackbar('HM','image',0,255,nothing)
-cv2.createTrackbar('Sm','image',0,255,nothing)
-cv2.createTrackbar('SM','image',0,255,nothing)
-cv2.createTrackbar('Vm','image',0,255,nothing)
-cv2.createTrackbar('VM','image',0,255,nothing)
-
-cv2.setTrackbarPos('Hm', 'image',0)
-cv2.setTrackbarPos('HM', 'image',51)
-cv2.setTrackbarPos('Sm', 'image',11)
-cv2.setTrackbarPos('SM', 'image',198)
-cv2.setTrackbarPos('Vm', 'image',65)
-cv2.setTrackbarPos('VM', 'image',86)
 
 if args.get("video", None) is None:
   print("no video founded")
@@ -79,27 +63,8 @@ while camera != 0:
     print("FRAME NOT GRABBED")
     break
 
-  hsv = cv2.cvtColor(current_frame, cv2.COLOR_BGR2HSV)
-
-  #get current positions of four trackbars
-  hm = cv2.getTrackbarPos('Hm', 'image')
-  hM = cv2.getTrackbarPos('HM', 'image')
-  sm = cv2.getTrackbarPos('Sm', 'image')
-  sM = cv2.getTrackbarPos('SM', 'image')
-  vm = cv2.getTrackbarPos('Vm', 'image')
-  vM = cv2.getTrackbarPos('VM', 'image')
-
-  lower_range = np.array([hm, sm, vm], dtype=np.uint8)
-  upper_range = np.array([hM, sM, vM], dtype=np.uint8)
-
-  current_frame_gray = cv2.inRange(hsv, lower_range, upper_range)
-
-
   current_frame_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
   previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-
-
-  frame_diff = cv2.absdiff(current_frame_gray, previous_frame_gray)
 
   c = getContour(current_frame_gray)
  
@@ -130,20 +95,54 @@ while camera != 0:
 
   #cv2.drawContours(current_frame, [c], -1, (0, 255, 0), 2)
 
+
+
+
+  dim_roi = [70,70]
+  roi_r = current_frame[right_ef[1]-dim_roi[1]:right_ef[1]+dim_roi[1], right_ef[0]-dim_roi[0]:right_ef[0]+dim_roi[0]]
+  roi_l = current_frame[left_ef[1]-dim_roi[1]:left_ef[1]+dim_roi[1], left_ef[0]-dim_roi[0]:left_ef[0]+dim_roi[0]]
+  edges_r = cv2.Canny(roi_r, 100, 200)
+  edges_l = cv2.Canny(roi_l, 100, 200)
+
+
+  #ellipse = cv2.fitEllipse(r)
+  #cv2.ellipse(current_frame,ellipse,(0,255,0),2)
+
+  roi_rg = cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY)
+  r = getContour(roi_rg,150)
+  cv2.drawContours(roi_r, [r], -1, (0, 255, 0), 2)
+ 
+
+
+  roi_lg = cv2.cvtColor(roi_l, cv2.COLOR_BGR2GRAY)
+  l = getContour(roi_lg,150)
+  cv2.drawContours(roi_l, [l], -1, (0, 255, 255), 2)
+  #ellipse = cv2.fitEllipse(l)
+  #cv2.ellipse(roi_l,ellipse,(0,255,255),2)
+
+  #frame_diff = cv2.absdiff(black, previous_frame_gray)
+
+  #cv2.imshow('ROI', roi_rg)
+
+  #cv2.imshow('frame diff', frame_diff)
+  #cv2.imshow('edges_l', edges_l)
+  #cv2.imshow('edges_r', edges_r)
+
+
+  '''
+  l = getContour(cv2.cvtColor(roi_l, cv2.COLOR_BGR2GRAY))
+  cv2.drawContours(roi_l, [l], -1, (0, 255, 0), 2)
+  
+
+  r = getContour(cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY))
+  cv2.drawContours(roi_r, [l], -1, (0, 255, 255), 2)
+  '''
+
   cv2.circle(current_frame, right_ef, 8, (0, 0, 255), -1)
   cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
-
-
-
-    
-  roi = current_frame[left_ef[1]:left_ef[1]+(right_ef[1]-left_ef[1]),   left_ef[0]:left_ef[0]+(right_ef[0]-left_ef[0])]
-
-  edges = cv2.Canny(frame_diff, 100, 200)
-  #cv2.imshow('mask', current_frame_gray)
-  #cv2.imshow('frame diff', frame_diff)
-  #cv2.imshow('edges', edges)
   cv2.imshow('original frame', current_frame)
-  cv2.imshow('ROI', roi)
+  #cv2.imshow('left', roi_l)
+  #cv2.imshow('right', roi_r)
 
   cv2.waitKey(1)
 
