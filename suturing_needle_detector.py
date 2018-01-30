@@ -11,7 +11,7 @@ ap.add_argument("-v", "--video", help="path to the video file")
 args = vars(ap.parse_args())
 K = np.ndarray(shape=(3,3), dtype=float, order='F')
 img_size = [640,480]
-threshold_px = 50
+threshold_px = 100
 
 def nothing(x):
   pass
@@ -33,6 +33,23 @@ def getContour(img_gray,a=100):
   cnts = cnts[0] if imutils.is_cv2() else cnts[1]
   return max(cnts, key=cv2.contourArea)
 
+def findCentralPoint(direction, v, ef, top, bot, x=np.array([]), y=np.array([])): #0 left, 1 right
+  if(direction):
+    for p in range(len(v)): 
+      if not((v[p][1]>=top[1]-threshold_px  and v[p][1]<=top[1]+threshold_px) or (v[p][1]>=bot[1]-threshold_px)):
+        x=np.append(x,v[p][0])
+        y=np.append(y,v[p][1])
+        print(v[p][0],ef[0])
+        if(v[p][0] >= ef[0]):
+          ef=v[p]
+  else :
+    for p in range(len(v)): 
+      if not(((v[p][1]>=top[1]-threshold_px  and v[p][1]<=top[1]+threshold_px) or (v[p][1]>=bot[1]-threshold_px))):
+        x=np.append(x,v[p][0])
+        y=np.append(y,v[p][1])
+        if(v[p][0] <= ef[0]):
+          ef=v[p]
+  return ef, x, y
 
 if args.get("video", None) is None:
   print("no video founded")
@@ -68,7 +85,7 @@ while camera != 0:
 
   c = getContour(current_frame_gray)
  
-  right_ef = [10000,1000]
+  right_ef = [10000,10000]
   left_ef = [-1,-1]
 
   left = c[:c[:, :, 1].argmax()+1,0,:]
@@ -78,6 +95,10 @@ while camera != 0:
   rx = np.array([])
   ry = np.array([])
 
+  left_ef, lx, ly = findCentralPoint(1, left, left_ef, top, bot, lx, ly) #0 left, 1 right
+  right_ef, rx, ry = findCentralPoint(0, right, right_ef, top, bot, rx, ry) #0 left, 1 right
+
+  '''
   for p in range(len(left)): 
     if not((left[p][1]>=top[1]-threshold_px  and left[p][1]<=top[1]+threshold_px) or (left[p][1]>=bot[1]-threshold_px)):
       lx=np.append(lx,left[p][0])
@@ -91,6 +112,7 @@ while camera != 0:
       ry=np.append(ry,right[p][1])
       if(right[p][0] <= right_ef[0]):
         right_ef=right[p]
+  '''
 
   left_ef = tuple([left_ef[0],left_ef[1]])
   right_ef = tuple([right_ef[0],right_ef[1]])
@@ -105,16 +127,16 @@ while camera != 0:
 
   #extLeft = tuple(c[c[:, :, 0].argmax()][0])
 
-  #cv2.drawContours(current_frame, [c], -1, (0, 255, 0), 2)
 
 
 
 
-  dim_roi = [70,70]
+  dim_roi = [50,50]
   roi_r = current_frame[right_ef[1]-dim_roi[1]:right_ef[1]+dim_roi[1], right_ef[0]-dim_roi[0]:right_ef[0]+dim_roi[0]]
   roi_l = current_frame[left_ef[1]-dim_roi[1]:left_ef[1]+dim_roi[1], left_ef[0]-dim_roi[0]:left_ef[0]+dim_roi[0]]
   edges_r = cv2.Canny(roi_r, 100, 200)
   edges_l = cv2.Canny(roi_l, 100, 200)
+
 
 
   #ellipse = cv2.fitEllipse(r)
@@ -122,13 +144,15 @@ while camera != 0:
 
   roi_rg = cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY)
   r = getContour(roi_rg,150)
-  cv2.drawContours(roi_r, [r], -1, (0, 255, 0), 2)
+  #cv2.drawContours(roi_r, [r], -1, (0, 255, 0), 2)
  
+  cv2.drawContours(current_frame, [c], -1, (0, 255, 0), 2)
 
 
   roi_lg = cv2.cvtColor(roi_l, cv2.COLOR_BGR2GRAY)
   l = getContour(roi_lg,150)
-  cv2.drawContours(roi_l, [l], -1, (0, 255, 255), 2)
+
+  #cv2.drawContours(roi_l, [l], -1, (0, 255, 255), 2)
   #ellipse = cv2.fitEllipse(l)
   #cv2.ellipse(roi_l,ellipse,(0,255,255),2)
 
