@@ -28,9 +28,13 @@ def getContour(img_gray,a=100):
    
   # find contours in thresholded image, then grab the largest
   # one
-  cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+  cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE,
     cv2.CHAIN_APPROX_SIMPLE)
 
+  a,b,c = cv2.findContours(thresh.copy(), cv2.RETR_TREE,
+    cv2.CHAIN_APPROX_SIMPLE)
+
+  print c.shape
   cnts = cnts[0] if imutils.is_cv2() else cnts[1]
   return max(cnts, key=cv2.contourArea)
 
@@ -162,6 +166,18 @@ while camera != 0:
   #cv2.imshow('original frame', current_frame)
 
   diff = roi_r-roi_rb
+  gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+
+  #d = cv2.Canny(gray,100,200)
+
+
+  cv2.drawContours(diff, [], -1, (0, 255, 255), 2)
+
+  #ellipse = cv2.fitEllipse(cnt)
+  
+  #print ellipse
+  #cv2.ellipse(diff,ellipse,(255,255,0),2)
+
   cv2.imshow('diff', diff)
 
   cv2.waitKey(0)
