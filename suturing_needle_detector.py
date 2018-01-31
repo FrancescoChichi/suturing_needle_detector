@@ -17,26 +17,28 @@ dim_roi = [100,100]
 def nothing(x):
   pass
 
-def getContour(img_gray,a=100):
+def getContour(img_gray,t=100):
   gray = cv2.GaussianBlur(img_gray, (5, 5), 0)
- 
+  #gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+  #gray=img_gray
   # threshold the image, then perform a series of erosions +
   # dilations to remove any small regions of noise
-  thresh = cv2.threshold(gray, a, 255, cv2.THRESH_BINARY)[1]
+  thresh = cv2.threshold(gray, t, 255, cv2.THRESH_BINARY)[1]
   thresh = cv2.erode(thresh, None, iterations=2)
   thresh = cv2.dilate(thresh, None, iterations=2)
    
   # find contours in thresholded image, then grab the largest
   # one
-  cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE,
+  #cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+  #  cv2.CHAIN_APPROX_SIMPLE) RETR_TREE
+
+  a,b,c = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
     cv2.CHAIN_APPROX_SIMPLE)
 
-  a,b,c = cv2.findContours(thresh.copy(), cv2.RETR_TREE,
-    cv2.CHAIN_APPROX_SIMPLE)
+  #cnts = cnts[0] if imutils.is_cv2() else cnts[1]
 
-  print c.shape
-  cnts = cnts[0] if imutils.is_cv2() else cnts[1]
-  return max(cnts, key=cv2.contourArea)
+
+  return max(b, key=cv2.contourArea)
 
 def findCentralPoint(direction, v, ef, top, bot, x=None, y=None): #0 right, 1 left
   if not(x and y):
@@ -119,12 +121,12 @@ while camera != 0:
 
   roi_rg = cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY)
   r = getContour(roi_rg,150)
-  rb = getContour(roi_rg,110)
+  #rb = getContour(roi_rg,110)
 
-  roi_rb = np.zeros_like(roi_r)
+  #roi_rb = np.zeros_like(roi_r)
 
-  cv2.drawContours(roi_rb, [rb], -1, (0, 255, 0), 10)
-  cv2.imshow('roi_rb', roi_rb)
+  #cv2.drawContours(roi_rb, [rb], -1, (0, 255, 0), 10)
+  #cv2.imshow('roi_rb', roi_rb)
 
   #cv2.drawContours(current_frame, [c], -1, (0, 255, 0), 2)
 
@@ -149,41 +151,77 @@ while camera != 0:
 
   #cv2.circle(current_frame, needle_l, 8, (255, 0, 255), -1)
 
-  roi_r = np.zeros_like(roi_r)
-  roi_l = np.zeros_like(roi_l)
-
-  cv2.drawContours(roi_r, [r], -1, (0, 255, 0), 2)
-  #cv2.drawContours(current_frame, [rb], -1, (0, 255, 0), 2)
-  cv2.drawContours(roi_l, [l], -1, (0, 255, 255), 2)
 
 
-  cv2.imshow('roi r', roi_r)
+
+  
+
+
+  #cv2.imshow('roi r', roi_r)
   #cv2.imshow('roi l', roi_l)
+  #cv2.imshow('roi la', roi_la)
 
   cv2.circle(current_frame, right_ef, 8, (0, 0, 255), -1)
   cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
   
-  #cv2.imshow('original frame', current_frame)
+  cv2.imshow('original frame', current_frame)
 
-  diff = roi_r-roi_rb
-  gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+  #diff = roi_r-roi_rb
+  #gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
 
   #d = cv2.Canny(gray,100,200)
 
 
-  cv2.drawContours(diff, [], -1, (0, 255, 255), 2)
+  #cv2.drawContours(diff, [], -1, (0, 255, 255), 2)
 
   #ellipse = cv2.fitEllipse(cnt)
   
   #print ellipse
   #cv2.ellipse(diff,ellipse,(255,255,0),2)
 
-  cv2.imshow('diff', diff)
+  #cv2.imshow('diff', diff)
 
-  cv2.waitKey(0)
+  roi_r = np.zeros_like(roi_r)
+  roi_l = np.zeros_like(roi_l)
+  roi_la = np.zeros_like(roi_l)
 
-  if cv2.waitKey(1) & 0xFF == ord('q'):
-    break
+  lefta = l[:l[:, :, 1].argmax()+1,0,:]
+  righto = r[r[:, :, 1].argmax():,0,:]
+
+  bk = roi_r.copy()
+
+
+
+  #print lefta
+  cv2.drawContours(roi_r, [r], -1, (0, 255, 0), 2)
+  #cv2.drawContours(current_frame, [rb], -1, (0, 255, 0), 2)
+  cv2.drawContours(roi_la, [lefta], -1, (0, 255, 255), 2)
+  cv2.drawContours(roi_l, [l], -1, (255, 0, 0), 2)
+  #cv2.waitKey(0)
+
+
+  size = 40
+  if cv2.waitKey(0) & 0xFF == ord('p'):
+    for i in range(len(righto) - size):
+      a = righto[i:i+size]
+      ellipse = cv2.fitEllipse(a)
+      #cv2.ellipse(bk,ellipse,(0,0,255),2)
+      cv2.drawContours(bk, [a], -1, (0, 255, 0), 2)
+
+      if ellipse[2]>168 or (ellipse[2]<20 and ellipse[2]>10):
+        cv2.ellipse(bk,ellipse,(0,0,255),2)
+
+      else:
+        cv2.ellipse(bk,ellipse,(100,255,100),2)
+
+      
+      cv2.imshow('bk', bk)
+      bk = roi_r.copy()
+      
+      cv2.waitKey(0)
+
+  #if cv2.waitKey(0) & 0xFF == ord('q'):
+   # break
 
   #previous_frame_gray = current_frame_gray.copy()
   previous_frame = current_frame.copy()
