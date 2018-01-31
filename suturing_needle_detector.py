@@ -12,6 +12,7 @@ args = vars(ap.parse_args())
 K = np.ndarray(shape=(3,3), dtype=float, order='F')
 img_size = [640,480]
 threshold_px = 100
+dim_roi = [100,100]
 
 def nothing(x):
   pass
@@ -33,23 +34,29 @@ def getContour(img_gray,a=100):
   cnts = cnts[0] if imutils.is_cv2() else cnts[1]
   return max(cnts, key=cv2.contourArea)
 
-def findCentralPoint(direction, v, ef, top, bot, x=np.array([]), y=np.array([])): #0 left, 1 right
+def findCentralPoint(direction, v, ef, top, bot, x=None, y=None): #0 right, 1 left
+  if not(x and y):
+    skip = True
+  else:
+    skip = False
+
   if(direction):
     for p in range(len(v)): 
       if not((v[p][1]>=top[1]-threshold_px  and v[p][1]<=top[1]+threshold_px) or (v[p][1]>=bot[1]-threshold_px)):
-        x=np.append(x,v[p][0])
-        y=np.append(y,v[p][1])
-        print(v[p][0],ef[0])
+        if not(skip):
+          x=np.append(x,v[p][0])
+          y=np.append(y,v[p][1])
         if(v[p][0] >= ef[0]):
           ef=v[p]
   else :
     for p in range(len(v)): 
       if not(((v[p][1]>=top[1]-threshold_px  and v[p][1]<=top[1]+threshold_px) or (v[p][1]>=bot[1]-threshold_px))):
-        x=np.append(x,v[p][0])
-        y=np.append(y,v[p][1])
+        if not(skip):  
+          x=np.append(x,v[p][0])
+          y=np.append(y,v[p][1])
         if(v[p][0] <= ef[0]):
           ef=v[p]
-  return ef, x, y
+  return tuple([ef[0],ef[1]]), x, y
 
 if args.get("video", None) is None:
   print("no video founded")
@@ -84,7 +91,7 @@ while camera != 0:
   previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
 
   c = getContour(current_frame_gray)
- 
+
   right_ef = [10000,10000]
   left_ef = [-1,-1]
 
@@ -95,48 +102,12 @@ while camera != 0:
   rx = np.array([])
   ry = np.array([])
 
-  left_ef, lx, ly = findCentralPoint(1, left, left_ef, top, bot, lx, ly) #0 left, 1 right
-  right_ef, rx, ry = findCentralPoint(0, right, right_ef, top, bot, rx, ry) #0 left, 1 right
-
-  '''
-  for p in range(len(left)): 
-    if not((left[p][1]>=top[1]-threshold_px  and left[p][1]<=top[1]+threshold_px) or (left[p][1]>=bot[1]-threshold_px)):
-      lx=np.append(lx,left[p][0])
-      ly=np.append(ly,left[p][1])
-      if(left[p][0] >= left_ef[0]):
-        left_ef=left[p]
-
-  for p in range(len(right)): 
-    if not(((right[p][1]>=top[1]-threshold_px  and right[p][1]<=top[1]+threshold_px) or (right[p][1]>=bot[1]-threshold_px))):
-      rx=np.append(rx,right[p][0])
-      ry=np.append(ry,right[p][1])
-      if(right[p][0] <= right_ef[0]):
-        right_ef=right[p]
-  '''
-
-  left_ef = tuple([left_ef[0],left_ef[1]])
-  right_ef = tuple([right_ef[0],right_ef[1]])
-
-  ellipse=elps.fitEllipse(rx,ry)
-  center = elps.ellipse_center(ellipse)
-  phi = elps.ellipse_angle_of_rotation2(ellipse)
-  axes = elps.ellipse_axis_length(ellipse)
-  center = tuple([int(center[0]),int(center[1])])
-  print ellipse
-  #cv2.drawContours(current_frame, [ellipse], -1, (255, 255, 0), 2)
-
-  #extLeft = tuple(c[c[:, :, 0].argmax()][0])
+  left_ef, lx, ly = findCentralPoint(1, left, left_ef, top, bot, lx, ly) #0 right, 1 left
+  right_ef, rx, ry = findCentralPoint(0, right, right_ef, top, bot, rx, ry) #0 right, 1 left
 
 
-
-
-
-  dim_roi = [50,50]
-  roi_r = current_frame[right_ef[1]-dim_roi[1]:right_ef[1]+dim_roi[1], right_ef[0]-dim_roi[0]:right_ef[0]+dim_roi[0]]
-  roi_l = current_frame[left_ef[1]-dim_roi[1]:left_ef[1]+dim_roi[1], left_ef[0]-dim_roi[0]:left_ef[0]+dim_roi[0]]
-  edges_r = cv2.Canny(roi_r, 100, 200)
-  edges_l = cv2.Canny(roi_l, 100, 200)
-
+  roi_r = current_frame[right_ef[1]-dim_roi[1]:right_ef[1]+dim_roi[1], right_ef[0]-dim_roi[0]:right_ef[0]+dim_roi[0]].copy()
+  roi_l = current_frame[left_ef[1]-dim_roi[1]:left_ef[1]+dim_roi[1], left_ef[0]-dim_roi[0]:left_ef[0]+dim_roi[0]].copy()
 
 
   #ellipse = cv2.fitEllipse(r)
@@ -144,43 +115,54 @@ while camera != 0:
 
   roi_rg = cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY)
   r = getContour(roi_rg,150)
-  #cv2.drawContours(roi_r, [r], -1, (0, 255, 0), 2)
- 
-  cv2.drawContours(current_frame, [c], -1, (0, 255, 0), 2)
+  rb = getContour(roi_rg,110)
+
+  roi_rb = np.zeros_like(roi_r)
+
+  cv2.drawContours(roi_rb, [rb], -1, (0, 255, 0), 10)
+  cv2.imshow('roi_rb', roi_rb)
+
+  #cv2.drawContours(current_frame, [c], -1, (0, 255, 0), 2)
+
+  #right = r[r[:, :, 1].argmax():,0,:]
+
+  #, nrx, nry = findNeedle(0, right, right_ef, top, bot, right_ef[0]+dim_roi[0],  np.array([]), np.array([])) #0 right, 1 left
+
+  
+  #cv2.circle(current_frame, needle_r, 8, (0, 255, 0), -1)
+
 
 
   roi_lg = cv2.cvtColor(roi_l, cv2.COLOR_BGR2GRAY)
   l = getContour(roi_lg,150)
 
-  #cv2.drawContours(roi_l, [l], -1, (0, 255, 255), 2)
-  #ellipse = cv2.fitEllipse(l)
-  #cv2.ellipse(roi_l,ellipse,(0,255,255),2)
-
-  #frame_diff = cv2.absdiff(black, previous_frame_gray)
-
-  #cv2.imshow('ROI', roi_rg)
-
-  #cv2.imshow('frame diff', frame_diff)
-  #cv2.imshow('edges_l', edges_l)
-  #cv2.imshow('edges_r', edges_r)
+  #left = l[:l[:, :, 1].argmax()+1,0,:]
 
 
-  '''
-  l = getContour(cv2.cvtColor(roi_l, cv2.COLOR_BGR2GRAY))
-  cv2.drawContours(roi_l, [l], -1, (0, 255, 0), 2)
-  
 
-  r = getContour(cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY))
-  cv2.drawContours(roi_r, [l], -1, (0, 255, 255), 2)
-  '''
+
+  #needle_l, nlx, nly = findCentralPoint(1, left, left_ef, top, bot, np.array([]), np.array([])) #0 right, 1 left
+
+  #cv2.circle(current_frame, needle_l, 8, (255, 0, 255), -1)
+
+  roi_r = np.zeros_like(roi_r)
+  roi_l = np.zeros_like(roi_l)
+
+  cv2.drawContours(roi_r, [r], -1, (0, 255, 0), 2)
+  #cv2.drawContours(current_frame, [rb], -1, (0, 255, 0), 2)
+  cv2.drawContours(roi_l, [l], -1, (0, 255, 255), 2)
+
+
+  cv2.imshow('roi r', roi_r)
+  #cv2.imshow('roi l', roi_l)
 
   cv2.circle(current_frame, right_ef, 8, (0, 0, 255), -1)
   cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
-  #cv2.circle(current_frame, center, 8, (255, 255, 0), -1)
+  
+  #cv2.imshow('original frame', current_frame)
 
-  cv2.imshow('original frame', current_frame)
-  #cv2.imshow('left', roi_l)
-  #cv2.imshow('right', roi_r)
+  diff = roi_r-roi_rb
+  cv2.imshow('diff', diff)
 
   cv2.waitKey(0)
 
