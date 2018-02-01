@@ -3,7 +3,7 @@ import argparse
 import cv2
 import imutils
 import fitEllipse as elps
-
+import Queue as qe
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video", help="path to the video file")
 args = vars(ap.parse_args())
@@ -14,9 +14,37 @@ dim_roi = [80,80]
 upper=[160,180]
 lower=[10,20]
 threshold_ellipse = 10
+threshold_mean=200
+stackMean = 5
+meanL = [[],[]]
+meanR = [[],[]]
 
 def nothing(x):
   pass
+
+def inMean(d,e):
+
+  if d == 0:
+    m=meanR
+  else:
+    m=meanL
+
+  meanX = np.mean(m[0])
+  meanY = np.mean(m[1])
+
+  x = (e[0][0]+e[1][0])/2.0
+  y = (e[0][1]+e[1][1])/2.0
+
+  if (len(m[0])==0 or len(m[1])==0) or (x<=meanX+threshold_mean and x>=meanX-threshold_mean) and (y<=meanY+threshold_mean and y>=meanY-threshold_mean):
+    if len(m[0])>=stackMean:
+      del m[0][0]
+    if len(m[1])>=stackMean:
+      del m[1][0]
+    m[0].append(x)
+    m[1].append(y)
+    
+    return True
+  return False
 
 def getContour(img_gray,t=100):
   gray = cv2.GaussianBlur(img_gray, (5, 5), 0)
@@ -116,6 +144,8 @@ first_c = getContour(cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY))
 top = tuple(first_c[first_c[:, :, 1].argmin()][0])
 bot = tuple(first_c[first_c[:, :, 1].argmax()][0])
 
+
+
 while camera != 0:
 
   if not grabbed:
@@ -149,10 +179,17 @@ while camera != 0:
 
   roi_rg = cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY)
   r = getContour(roi_rg,150)
+  #roi_rg2 = cv2.cvtColor(roi_r, cv2.COLOR_BGR2GRAY)
+  #r2 = getContour(roi_rg2,100)
+  
 
   roi_lg = cv2.cvtColor(roi_l, cv2.COLOR_BGR2GRAY)
   l = getContour(roi_lg,150)
-  
+    
+  cv2.drawContours(current_frame[abs(right_ef[1]-dim_roi[1]):right_ef[1]+dim_roi[1], abs(right_ef[0]-dim_roi[0]):right_ef[0]+dim_roi[0]], [r], -1, (255, 0, 0), 2)
+  cv2.drawContours(current_frame[abs(left_ef[1]-dim_roi[1]):left_ef[1]+dim_roi[1], abs(left_ef[0]-dim_roi[0]):left_ef[0]+dim_roi[0]], [l], -1, (0, 255, 0), 2)
+
+
   roi_r = np.zeros_like(roi_r)
   roi_l = np.zeros_like(roi_l)
 
@@ -165,57 +202,62 @@ while camera != 0:
   ellipses_r = []
   stepList = []
 
-  bkl = roi_r.copy()
+  bkl = roi_l.copy()
 
   #LEFT
   for i in range(len(lefta) - size):
     a = lefta[i:i+size]
     ellipse = cv2.fitEllipse(a)
-    cv2.drawContours(bkl, [a], -1, (0, 255, 0), 2)
+    cv2.drawContours(bkl, [l], -1, (0, 255, 0), 2)
+    cv2.drawContours(bkl, [a], -1, (255, 0, 0), 2)
 
     if i%step==0:
       if len(stepList)!=0:
         ellipses_l.append(stepList)
       stepList = []
-
-    if (ellipse[2]>upper[0] and ellipse[2]<upper[1]) or (ellipse[2]>lower[0] and ellipse[2]<lower[1]):
-      stepList.append(ellipse)
-      cv2.ellipse(bkl,ellipse,(0,0,255),2)
-    else:
-      cv2.ellipse(bkl,ellipse,(100,255,100),2)
+    if inMean(0,ellipse):  
+      if (ellipse[2]>upper[0]):# and ellipse[2]<upper[1]):# or (ellipse[2]>lower[0] and ellipse[2]<lower[1]):
+        stepList.append(ellipse)
+        cv2.ellipse(bkl,ellipse,(0,0,255),2)
+      else:
+        cv2.ellipse(bkl,ellipse,(255,0,0),2)
 
     cv2.imshow('bkl', bkl)
-    bkl = roi_r.copy()
-  
-  bkr = roi_l.copy()
+    bkl = roi_l.copy()
+    #cv2.waitKey(0)
+
+  bkr = roi_r.copy()
   
   #RIGHT
   for i in range(len(righto) - size):
     a = righto[i:i+size]
     ellipse = cv2.fitEllipse(a)
-    cv2.drawContours(bkr, [a], -1, (0, 255, 0), 2)
+    cv2.drawContours(bkr, [r], -1, (0, 255, 0), 2)
+    cv2.drawContours(bkr, [a], -1, (255, 0, 0), 2)
 
     if i%step==0:
       if len(stepList)!=0:
         ellipses_r.append(stepList)
       stepList = []
-
-    if (ellipse[2]>upper[0] and ellipse[2]<upper[1]) or (ellipse[2]>lower[0] and ellipse[2]<lower[1]):
-      stepList.append(ellipse)
-
-      cv2.ellipse(bkr,ellipse,(0,0,255),2)
-    else:
-      cv2.ellipse(bkr,ellipse,(100,255,100),2)
+    
+    if inMean(1,ellipse):  
+      if (ellipse[2]>upper[0]):# and ellipse[2]<upper[1]):# or (ellipse[2]>lower[0] and ellipse[2]<lower[1]):
+        stepList.append(ellipse)
+        cv2.ellipse(bkr,ellipse,(0,0,255),2)
+      else:
+        cv2.ellipse(bkr,ellipse,(255,0,0),2)
 
     cv2.imshow('bkr', bkr)
-    bkr = roi_l.copy()
+    bkr = roi_r.copy()
+    #cv2.waitKey(0)
 
-  meanl = meanEllipse(ellipses_l)
-  meanr = meanEllipse(ellipses_r)
-  if meanl:
-    cv2.ellipse(current_frame[abs(left_ef[1]-dim_roi[1]):left_ef[1]+dim_roi[1], abs(left_ef[0]-dim_roi[0]):left_ef[0]+dim_roi[0]],meanl,(0,255,255),2)
-  if meanr:
-    cv2.ellipse(current_frame[abs(right_ef[1]-dim_roi[1]):right_ef[1]+dim_roi[1], abs(right_ef[0]-dim_roi[0]):right_ef[0]+dim_roi[0]],meanr,(0,0,255),2)
+
+  mediumEllipseL = meanEllipse(ellipses_l)
+  mediumEllipseR = meanEllipse(ellipses_r)
+  if mediumEllipseL:
+    cv2.ellipse(current_frame[abs(left_ef[1]-dim_roi[1]):left_ef[1]+dim_roi[1], abs(left_ef[0]-dim_roi[0]):left_ef[0]+dim_roi[0]],mediumEllipseL,(0,255,255),2)
+  if mediumEllipseR:
+    cv2.ellipse(current_frame[abs(right_ef[1]-dim_roi[1]):right_ef[1]+dim_roi[1], abs(right_ef[0]-dim_roi[0]):right_ef[0]+dim_roi[0]],mediumEllipseR,(0,0,255),2)
 
   cv2.circle(current_frame, right_ef, 8, (0, 0, 255), -1)
   cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
@@ -225,8 +267,7 @@ while camera != 0:
   #elif cv2.waitKey(1) & 0xFF == ord('q'):
   #  break
  
-  #cv2.imshow('roi r', roi_r)
-  #cv2.imshow('roi l', roi_l)
+
 
   #previous_frame_gray = current_frame_gray.copy()
   previous_frame = current_frame.copy()
