@@ -15,7 +15,7 @@ upper=[160,180]
 lower=[10,20]
 threshold_ellipse = 10
 threshold_mean=200
-stackMean = 5
+stackMean = 20
 mean_list = [[],[]]
 min_window = [100,100]
 max_window = [200,200]
@@ -95,6 +95,8 @@ def meanEllipse(l):
   ellipse[1]=tuple([ellipse[1][0]/n,ellipse[1][1]/n])
   ellipse[2]=ellipse[2]/n
   ellipse = tuple(ellipse)
+
+
 
   return ellipse
 
@@ -232,7 +234,7 @@ while camera != 0:
 
     
     cv2.imshow('bk', bk)
-    cv2.waitKey(10)
+    #cv2.waitKey(10)
     bk = centered_roi.copy()
 
   

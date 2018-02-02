@@ -48,7 +48,7 @@ def inMean(d,e):
 
 def getContour(img_gray,t=100):
   gray = cv2.GaussianBlur(img_gray, (5, 5), 0)
-  thresh = cv2.threshold(gray, t, 255, cv2.THRESH_BINARY)[1]
+  thresh = cv2.threshold(gray, 170, 255, cv2.THRESH_BINARY)[1]
   thresh = cv2.erode(thresh, None, iterations=2)
   thresh = cv2.dilate(thresh, None, iterations=2)
 
@@ -215,7 +215,7 @@ while camera != 0:
   roi_lg = cv2.cvtColor(roi_l, cv2.COLOR_BGR2GRAY)
   l = getContour(roi_lg,150)
   
-  
+
   roi_middle_gray = cv2.cvtColor(roi_middle, cv2.COLOR_BGR2GRAY)
   m = getContour(roi_middle_gray,150)
 
