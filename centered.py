@@ -4,6 +4,7 @@ import cv2
 import imutils
 import fitEllipse as elps
 import Queue as qe
+
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video", help="path to the video file")
 args = vars(ap.parse_args())
@@ -14,9 +15,9 @@ dim_roi = [80,80]
 upper=[160,180]
 lower=[10,20]
 threshold_ellipse = 10
-threshold_mean=200
+threshold_mean=0
 stackMean = 20
-mean_list = [[],[]]
+mean_list = [[],[],[]] #center, width, height
 min_window = [100,100]
 max_window = [200,200]
 offset = 20
@@ -25,22 +26,51 @@ ellipse_size = 40
 def nothing(x):
   pass
 
+def nearPoint(a,b,th=0):
+  if(float(b)):
+    print 'a ',a,' b ',b 
+    if a[0]<=b+th and a[0]>=b-th and a[1]<=b+th and a[1]>=b-th:
+      return True
+  elif a[0]<=b[0]+th and a[0]>=b[0]-th and a[1]<=b[1]+th and a[1]>=b[1]-th:
+    return True
+  return False
+
 def inMean(e):
   
-  
-  meanX = np.mean(mean_list[0])
-  meanY = np.mean(mean_list[1])
+  center = e[0]
+  width = e[1][0]
+  height = e[1][1]
+  phi = e[2]
 
-  x = (e[0][0]+e[1][0])/2.0
-  y = (e[0][1]+e[1][1])/2.0
+  if len(mean_list[0]) < stackMean and len(mean_list[1]) < stackMean and len(mean_list[2]) < stackMean:
+    mean_list[0].append(center)
+    mean_list[1].append(width)   
+    mean_list[2].append(height) 
+    return True
 
-  if (len(mean_list[0])==0 or len(mean_list[1])==0) or (x<=meanX+threshold_mean and x>=meanX-threshold_mean) and (y<=meanY+threshold_mean and y>=meanY-threshold_mean):
+  meanC = np.mean(mean_list[0])
+  meanW = np.mean(mean_list[1])
+  meanH = np.mean(mean_list[2])
+
+  print 'c ', meanC
+  print 'w ', meanW
+  print 'h ', meanH
+  print nearPoint(center,meanC,threshold_mean)
+
+  if nearPoint(center,meanC,threshold_mean) \
+    and (width<=meanW+threshold_mean and width>=meanW-threshold_meanth) \
+    and (height<=meanH+threshold_mean and height>=meanH-threshold_mean):
+
     if len(mean_list[0])>=stackMean:
       del mean_list[0][0]
     if len(mean_list[1])>=stackMean:
       del mean_list[1][0]
-    mean_list[0].append(x)
-    mean_list[1].append(y)
+    if len(mean_list[2])>=stackMean:
+      del mean_list[2][0]
+
+    mean_list[0].append(center)
+    mean_list[1].append(width)   
+    mean_list[2].append(height) 
     
     return True
   return False
@@ -142,7 +172,8 @@ cv2.createTrackbar('upper_MAX','ellipses_thresholds',upper[1],250,nothing)
 cv2.createTrackbar('lower_min','ellipses_thresholds',lower[0],lower[1],nothing)
 cv2.createTrackbar('lower_MAX','ellipses_thresholds',lower[1],100,nothing)
 
-(grabbed, current_frame) = camera.read()
+for i in range(250):
+  (grabbed, current_frame) = camera.read()
 
 previous_frame = current_frame
 
@@ -217,24 +248,36 @@ while camera != 0:
 
   for i in range(len(pixels) - ellipse_size):
     a = pixels[i:i+ellipse_size]
+    
     ellipse = cv2.fitEllipse(a)
     cv2.drawContours(bk, [m], -1, (0, 255, 0), 2)
     cv2.drawContours(bk, [a], -1, (255, 0, 0), 2)
 
+    
     if i%step==0:
       if len(stepList)!=0:
         ellipses.append(stepList)
       stepList = []
-    if inMean(ellipse):  
-      if (ellipse[2]>upper[0]):# and ellipse[2]<upper[1]):# or (ellipse[2]>lower[0] and ellipse[2]<lower[1]):
-        stepList.append(ellipse)
-        cv2.ellipse(bk,ellipse,(0,0,255),2)
-      else:
-        cv2.ellipse(bk,ellipse,(255,0,0),2)
+     
+    if (ellipse[1][0]<=ellipse_size or ellipse[1][1]<=ellipse_size):
+      #if inMean(ellipse):  
+       # if (ellipse[2]>upper[0]):# and ellipse[2]<upper[1]):# or (ellipse[2]>lower[0] and ellipse[2]<lower[1]):
+        #  stepList.append(ellipse)
+
+      stepList.append(ellipse)
+      cv2.ellipse(bk, ellipse, (0,255,0), 2)
+      #cv2.ellipse(bk, ell, (0,0,255), 2) 
+
+      #cv2.ellipse(centered_roi_pointer, ell, (0,0,255), 2)
+
+      #cv2.ellipse(centered_roi_pointer,ellipse,(0,255,0),2)
+
+      #  else:
+       #   cv2.ellipse(bk,ellipse,(255,0,0),2)
 
     
     cv2.imshow('bk', bk)
-    #cv2.waitKey(10)
+    #cv2.waitKey(0)
     bk = centered_roi.copy()
 
   
@@ -247,7 +290,7 @@ while camera != 0:
 
   cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
   cv2.imshow('original frame', current_frame)
-  cv2.waitKey(1)
+  cv2.waitKey(0)
 
   #elif cv2.waitKey(1) & 0xFF == ord('q'):
   #  break
