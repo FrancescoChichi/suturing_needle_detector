@@ -18,10 +18,13 @@ threshold_ellipse = 10
 threshold_mean=0
 stackMean = 20
 mean_list = [[],[],[]] #center, width, height
-min_window = [100,100]
+min_window = [60,60]
 max_window = [200,200]
 offset = 30
 ellipse_size = 40
+primo = 1
+prevEd = 0  
+nframe = 0
 
 def nothing(x):
   pass
@@ -131,7 +134,7 @@ def meanEllipse(l):
 
   for i in range(len(l)):
     numEllipse += len(l[i])
-    if len(l[i])>bestList:
+    if len(l[i])>len(l[bestList]):
       bestList=i
 
   if len(l)==0 or numEllipse<threshold_ellipse:
@@ -187,13 +190,14 @@ print("opencv version "+cv2.__version__)
 
 cv2.namedWindow('ellipses_thresholds',)
 cv2.createTrackbar('ellipse_size','ellipses_thresholds',ellipse_size,150,nothing)
-cv2.createTrackbar('upper_min','ellipses_thresholds',upper[0],upper[1],nothing)
+'''cv2.createTrackbar('upper_min','ellipses_thresholds',upper[0],upper[1],nothing)
 cv2.createTrackbar('upper_MAX','ellipses_thresholds',upper[1],250,nothing)
 cv2.createTrackbar('lower_min','ellipses_thresholds',lower[0],lower[1],nothing)
 cv2.createTrackbar('lower_MAX','ellipses_thresholds',lower[1],100,nothing)
-
-for i in range(250):
+'''
+for i in range(900):
   (grabbed, current_frame) = camera.read()
+  nframe = i
 
 previous_frame = current_frame
 
@@ -212,14 +216,15 @@ while camera != 0:
   if not grabbed:
     print("FRAME NOT GRABBED")
     break
-
+  nframe = nframe + 1
+  print nframe
   ellipse_size_bk = ellipse_size
   ellipse_size = cv2.getTrackbarPos('ellipse_size', 'ellipses_thresholds')
   if ellipse_size != ellipse_size_bk:
     mean_list = [[],[]]
 
-  upper = [cv2.getTrackbarPos('upper_min', 'ellipses_thresholds'),cv2.getTrackbarPos('upper_MAX', 'ellipses_thresholds')]
-  lower = [cv2.getTrackbarPos('lower_min', 'ellipses_thresholds'),cv2.getTrackbarPos('lower_MAX', 'ellipses_thresholds')]
+  #upper = [cv2.getTrackbarPos('upper_min', 'ellipses_thresholds'),cv2.getTrackbarPos('upper_MAX', 'ellipses_thresholds')]
+  #lower = [cv2.getTrackbarPos('lower_min', 'ellipses_thresholds'),cv2.getTrackbarPos('lower_MAX', 'ellipses_thresholds')]
 
   current_frame_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
   previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
@@ -241,11 +246,27 @@ while camera != 0:
   left_ef, lx, ly = findCentralPoint(1, left, left_ef, top, bot, lx, ly) #0 right, 1 left
   right_ef, rx, ry = findCentralPoint(0, right, right_ef, top, bot, rx, ry) #0 right, 1 left
 
-  dx = max(abs(left_ef[0]-right_ef[0]),min_window[0])+offset
-  dy = max(abs(left_ef[1]-right_ef[1]),min_window[1])+offset
+  dx = abs(left_ef[0]-right_ef[0])
+  dy = abs(left_ef[1]-right_ef[1])
 
-  centered_roi_pointer = current_frame[left_ef[1]-offset:left_ef[1]+dy, left_ef[0]-offset:left_ef[0]+dx]
+  if(dx > min_window[0]):
+    dx = 0
+  else:
+    dx = min_window[0]
 
+  if(dy > min_window[1]):
+    dy = 0
+  else:
+    dy = min_window[1] 
+
+
+  
+  print "dx ",dx,"dy ",dy
+  centered_roi_pointer = current_frame[left_ef[1]-(dy/2):right_ef[1]+(dy/2), left_ef[0]-(dx/2):right_ef[0]+(dx/2)]
+  print "Y diff ",(left_ef[1]-(dy/2)) - (right_ef[1]+(dy/2))
+
+  print "X diff " ,(left_ef[0]-(dx/2))-(right_ef[0]+(dx/2))
+  
 
 
   centered_roi = centered_roi_pointer.copy()
@@ -303,20 +324,42 @@ while camera != 0:
     #cv2.waitKey(0)
     bk = centered_roi.copy()
 
-  mediumEllipseL, best_list = meanEllipse(ellipses)
+  mediumEllipse, best_list = meanEllipse(ellipses)
+  
+  if(primo == 1):
+    prevEll = 0
+  
+ 
+  if mediumEllipse:
+    cv2.ellipse(centered_roi_pointer,mediumEllipse,(255,0,0),2)
+    mediumEllipse = findMostSimilar(mediumEllipse,ellipses[best_list], 20)
+    if(primo != 1):
+      prevEll = mediumEllipse
+      prevEd = 1
+      vec = [abs(prevEll[0][0] - mediumEllipse[0][0]),abs(prevEll[0][1] - mediumEllipse[0][1])]
+      res = np.linalg.norm(vec)
+      if(res < 30):
+        
+        cv2.ellipse(centered_roi_pointer,mediumEllipse,(0,0,255),2)
+      else:
+        cv2.ellipse(centered_roi_pointer,prevEll,(0,0,255),2)
+      
+     
+    else: 
+      primo = 0
+   
+  else:
+    
+    if (prevEd == 1):
+      cv2.ellipse(centered_roi_pointer,prevEll,(0,0,255),2)
 
-  if mediumEllipseL:
-    cv2.ellipse(centered_roi_pointer,mediumEllipseL,(255,0,0),2)
-    mediumEllipseL = findMostSimilar(mediumEllipseL,ellipses[best_list], 20)
-    cv2.ellipse(centered_roi_pointer,mediumEllipseL,(0,0,255),2)
 
-
-
-  #cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
+  cv2.circle(current_frame, left_ef, 8, (0, 255, 255), -1)
+  cv2.circle(current_frame, right_ef, 8, (70, 255, 135), -1)
   cv2.imshow('original frame', current_frame)
   cv2.imshow('all ellipses', frame_test_bk)
-  cv2.moveWindow("original frame", 1500,0)
-  cv2.moveWindow("all ellipses", 800,0)
+  cv2.moveWindow("original frame", 1200,0)
+  cv2.moveWindow("all ellipses", 500,500)
 
   cv2.waitKey(0)
 

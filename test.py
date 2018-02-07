@@ -6,7 +6,6 @@ import fitEllipse as elps
 import Queue as qe
 import fitEllipse as fe
 #import cv2.cv as cv
-import ellipses as el
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 
