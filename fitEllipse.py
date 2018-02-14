@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.linalg import eig, inv
+from pylab import *
 
 def fitEllipse(x,y):
     if type(x)!=np.ndarray:
@@ -73,7 +74,7 @@ def main():
     yy = center[1] + a*np.cos(R)*np.sin(phi) + b*np.sin(R)*np.cos(phi)
 
 
-    from pylab import *
+    
     plot(x,y)
     plot(xx,yy, color = 'red')
     show()

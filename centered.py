@@ -1,9 +1,9 @@
 import numpy as np
 import argparse
 import cv2
-import imutils
+#import imutils
 import fitEllipse as elps
-import Queue as qe
+#import Queue as qe
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video", help="path to the video file")
@@ -78,10 +78,10 @@ def inMean(e):
   meanW = np.mean(mean_list[1])
   meanH = np.mean(mean_list[2])
 
-  print 'c ', meanC
-  print 'w ', meanW
-  print 'h ', meanH
-  print nearPoint(center,meanC,threshold_mean)
+  print ('c ', meanC)
+  print ('w ', meanW)
+  print ('h ', meanH)
+  print (nearPoint(center,meanC,threshold_mean))
 
   if nearPoint(center,meanC,threshold_mean) \
     and (width<=meanW+threshold_mean and width>=meanW-threshold_meanth) \
@@ -181,7 +181,7 @@ if args.get("video", None) is None:
   print("no video founded")
   camera = 0
 else:
-  camera = cv2.VideoCapture(args["video"])
+  camera = cv2.VideoCapture("Suturing_B001_capture1.avi")
   camera.set(cv2.CAP_PROP_FRAME_WIDTH, img_size[0])
   camera.set(cv2.CAP_PROP_FRAME_HEIGHT, img_size[1])
   camera.set(cv2.CAP_PROP_FPS, 1)
@@ -217,7 +217,7 @@ while camera != 0:
     print("FRAME NOT GRABBED")
     break
   nframe = nframe + 1
-  print nframe
+  print (nframe)
   ellipse_size_bk = ellipse_size
   ellipse_size = cv2.getTrackbarPos('ellipse_size', 'ellipses_thresholds')
   if ellipse_size != ellipse_size_bk:
@@ -261,11 +261,23 @@ while camera != 0:
 
 
   
-  print "dx ",dx,"dy ",dy
-  centered_roi_pointer = current_frame[left_ef[1]-(dy/2):right_ef[1]+(dy/2), left_ef[0]-(dx/2):right_ef[0]+(dx/2)]
-  print "Y diff ",(left_ef[1]-(dy/2)) - (right_ef[1]+(dy/2))
+  print ("dx ",dx,"dy ",dy)
 
-  print "X diff " ,(left_ef[0]-(dx/2))-(right_ef[0]+(dx/2))
+  if(left_ef[0] > right_ef[0]):
+  	if(left_ef[1] >= right_ef[1]):
+  		centered_roi_pointer = current_frame[left_ef[1]-(dy/2):right_ef[1]+(dy/2), right_ef[0]-(dx/2):left_ef[0]+(dx/2)]
+  	else:
+  		centered_roi_pointer = current_frame[right_ef[1]-(dy/2):left_ef[1]+(dy/2), right_ef[0]-(dx/2):left_ef[0]+(dx/2)]
+  else:
+  	if(left_ef[1] >= right_ef[1]):
+  		centered_roi_pointer = current_frame[left_ef[1]-(dy/2):right_ef[1]+(dy/2), left_ef[0]-(dx/2):right_ef[0]+(dx/2)]
+  	else:
+  		centered_roi_pointer = current_frame[right_ef[1]-(dy/2):left_ef[1]+(dy/2), left_ef[0]-(dx/2):right_ef[0]+(dx/2)]
+
+  
+  print ("Y diff ",(left_ef[1]-(dy/2)) - (right_ef[1]+(dy/2)))
+
+  print ("X diff " ,(left_ef[0]-(dx/2))-(right_ef[0]+(dx/2)))
   
 
 
