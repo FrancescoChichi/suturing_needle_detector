@@ -5,10 +5,6 @@ import cv2
 import fitEllipse as elps
 #import Queue as qe
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-v", "--video", help="path to the video file")
-args = vars(ap.parse_args())
-K = np.ndarray(shape=(3,3), dtype=float, order='F')
 img_size = [640,480]
 threshold_px = 100
 dim_roi = [80,80]
@@ -18,7 +14,7 @@ threshold_ellipse = 10
 threshold_mean=0
 stackMean = 20
 mean_list = [[],[],[]] #center, width, height
-min_window = [60,60]
+min_window = [80,80]
 max_window = [200,200]
 offset = 30
 ellipse_size = 40
@@ -177,14 +173,11 @@ def findCentralPoint(direction, v, ef, top, bot, x=None, y=None): #0 right, 1 le
           ef=v[p]
   return tuple([ef[0],ef[1]]), x, y
 
-if args.get("video", None) is None:
-  print("no video founded")
-  camera = 0
-else:
-  camera = cv2.VideoCapture("Suturing_B001_capture1.avi")
-  camera.set(cv2.CAP_PROP_FRAME_WIDTH, img_size[0])
-  camera.set(cv2.CAP_PROP_FRAME_HEIGHT, img_size[1])
-  camera.set(cv2.CAP_PROP_FPS, 1)
+
+camera = cv2.VideoCapture("/media/francesco/UbuntuHD/medical_robotics/Suturing/video/Suturing_B001_capture2.avi")
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, img_size[0])
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, img_size[1])
+camera.set(cv2.CAP_PROP_FPS, 1)
 
 print("opencv version "+cv2.__version__)
 
@@ -217,7 +210,7 @@ while camera != 0:
     print("FRAME NOT GRABBED")
     break
   nframe = nframe + 1
-  print (nframe)
+  #print (nframe)
   ellipse_size_bk = ellipse_size
   ellipse_size = cv2.getTrackbarPos('ellipse_size', 'ellipses_thresholds')
   if ellipse_size != ellipse_size_bk:
@@ -261,23 +254,24 @@ while camera != 0:
 
 
   
-  print ("dx ",dx,"dy ",dy)
+  #print ("dx ",dx,"dy ",dy)
 
-  if(left_ef[0] > right_ef[0]):
-  	if(left_ef[1] >= right_ef[1]):
-  		centered_roi_pointer = current_frame[left_ef[1]-(dy/2):right_ef[1]+(dy/2), right_ef[0]-(dx/2):left_ef[0]+(dx/2)]
-  	else:
-  		centered_roi_pointer = current_frame[right_ef[1]-(dy/2):left_ef[1]+(dy/2), right_ef[0]-(dx/2):left_ef[0]+(dx/2)]
+  if(left_ef[0] >= right_ef[0]):
+    if(left_ef[1] <= right_ef[1]):
+      print ("left ",left_ef, " right ",right_ef)
+      centered_roi_pointer = current_frame[max(left_ef[1]-(dy/2),0):right_ef[1]+(dy/2), max(right_ef[0]-(dx/2),0):left_ef[0]+(dx/2)]
+    else:
+      centered_roi_pointer = current_frame[max(right_ef[1]-(dy/2),0):left_ef[1]+(dy/2), max(right_ef[0]-(dx/2),0):left_ef[0]+(dx/2)]
   else:
-  	if(left_ef[1] >= right_ef[1]):
-  		centered_roi_pointer = current_frame[left_ef[1]-(dy/2):right_ef[1]+(dy/2), left_ef[0]-(dx/2):right_ef[0]+(dx/2)]
-  	else:
-  		centered_roi_pointer = current_frame[right_ef[1]-(dy/2):left_ef[1]+(dy/2), left_ef[0]-(dx/2):right_ef[0]+(dx/2)]
+    if(left_ef[1] <= right_ef[1]):
+      centered_roi_pointer = current_frame[max(left_ef[1]-(dy/2),0):right_ef[1]+(dy/2), max(left_ef[0]-(dx/2),0):right_ef[0]+(dx/2)]
+    else:
+      centered_roi_pointer = current_frame[max(right_ef[1]-(dy/2),0):left_ef[1]+(dy/2), max(left_ef[0]-(dx/2),0):right_ef[0]+(dx/2)]
 
   
-  print ("Y diff ",(left_ef[1]-(dy/2)) - (right_ef[1]+(dy/2)))
+  #print ("Y diff ",(left_ef[1]-(dy/2)) - (right_ef[1]+(dy/2)))
 
-  print ("X diff " ,(left_ef[0]-(dx/2))-(right_ef[0]+(dx/2)))
+  #print ("X diff " ,(left_ef[0]-(dx/2))-(right_ef[0]+(dx/2)))
   
 
 
@@ -373,7 +367,7 @@ while camera != 0:
   cv2.moveWindow("original frame", 1200,0)
   cv2.moveWindow("all ellipses", 500,500)
 
-  cv2.waitKey(0)
+  cv2.waitKey(1)
 
   #elif cv2.waitKey(1) & 0xFF == ord('q'):
   #  break
