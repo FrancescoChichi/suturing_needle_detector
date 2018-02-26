@@ -22,6 +22,13 @@ primo = 1
 prevEd = 0  
 nframe = 0
 
+
+ap = argparse.ArgumentParser()
+ap.add_argument("-v", "--video", help="path to the video file")
+args = vars(ap.parse_args())
+
+
+
 def nothing(x):
   pass
 
@@ -173,21 +180,20 @@ def findCentralPoint(direction, v, ef, top, bot, x=None, y=None): #0 right, 1 le
           ef=v[p]
   return tuple([ef[0],ef[1]]), x, y
 
-
-camera = cv2.VideoCapture("/media/francesco/UbuntuHD/medical_robotics/Suturing/video/Suturing_B001_capture2.avi")
-camera.set(cv2.CAP_PROP_FRAME_WIDTH, img_size[0])
-camera.set(cv2.CAP_PROP_FRAME_HEIGHT, img_size[1])
-camera.set(cv2.CAP_PROP_FPS, 1)
+if args.get("video", None) is None:
+  print("no video founded")
+  camera = 0
+else:
+  camera = cv2.VideoCapture(args["video"])
+  camera.set(cv2.CAP_PROP_FRAME_WIDTH, img_size[0])
+  camera.set(cv2.CAP_PROP_FRAME_HEIGHT, img_size[1])
+  camera.set(cv2.CAP_PROP_FPS, 1)
 
 print("opencv version "+cv2.__version__)
 
 cv2.namedWindow('ellipses_thresholds',)
 cv2.createTrackbar('ellipse_size','ellipses_thresholds',ellipse_size,150,nothing)
-'''cv2.createTrackbar('upper_min','ellipses_thresholds',upper[0],upper[1],nothing)
-cv2.createTrackbar('upper_MAX','ellipses_thresholds',upper[1],250,nothing)
-cv2.createTrackbar('lower_min','ellipses_thresholds',lower[0],lower[1],nothing)
-cv2.createTrackbar('lower_MAX','ellipses_thresholds',lower[1],100,nothing)
-'''
+
 for i in range(900):
   (grabbed, current_frame) = camera.read()
   nframe = i
@@ -210,14 +216,10 @@ while camera != 0:
     print("FRAME NOT GRABBED")
     break
   nframe = nframe + 1
-  #print (nframe)
   ellipse_size_bk = ellipse_size
   ellipse_size = cv2.getTrackbarPos('ellipse_size', 'ellipses_thresholds')
   if ellipse_size != ellipse_size_bk:
     mean_list = [[],[]]
-
-  #upper = [cv2.getTrackbarPos('upper_min', 'ellipses_thresholds'),cv2.getTrackbarPos('upper_MAX', 'ellipses_thresholds')]
-  #lower = [cv2.getTrackbarPos('lower_min', 'ellipses_thresholds'),cv2.getTrackbarPos('lower_MAX', 'ellipses_thresholds')]
 
   current_frame_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
   previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
@@ -233,6 +235,10 @@ while camera != 0:
   right = c[c[:, :, 1].argmax():,0,:]
   rx = np.array([])
   ry = np.array([])
+
+
+
+  frame_test_bk = current_frame.copy()
 
 
 
@@ -252,28 +258,23 @@ while camera != 0:
   else:
     dy = min_window[1] 
 
-
-  
-  #print ("dx ",dx,"dy ",dy)
-
   if(left_ef[0] >= right_ef[0]):
     if(left_ef[1] <= right_ef[1]):
-      print ("left ",left_ef, " right ",right_ef)
       centered_roi_pointer = current_frame[max(left_ef[1]-(dy/2),0):right_ef[1]+(dy/2), max(right_ef[0]-(dx/2),0):left_ef[0]+(dx/2)]
+      centered_roi_pointer_test_bk = frame_test_bk[max(left_ef[1]-(dy/2),0):right_ef[1]+(dy/2), max(right_ef[0]-(dx/2),0):left_ef[0]+(dx/2)]
+ 
     else:
       centered_roi_pointer = current_frame[max(right_ef[1]-(dy/2),0):left_ef[1]+(dy/2), max(right_ef[0]-(dx/2),0):left_ef[0]+(dx/2)]
+      centered_roi_pointer_test_bk = frame_test_bk[max(right_ef[1]-(dy/2),0):left_ef[1]+(dy/2), max(right_ef[0]-(dx/2),0):left_ef[0]+(dx/2)]
+
   else:
     if(left_ef[1] <= right_ef[1]):
       centered_roi_pointer = current_frame[max(left_ef[1]-(dy/2),0):right_ef[1]+(dy/2), max(left_ef[0]-(dx/2),0):right_ef[0]+(dx/2)]
+      centered_roi_pointer_test_bk = frame_test_bk[max(left_ef[1]-(dy/2),0):right_ef[1]+(dy/2), max(left_ef[0]-(dx/2),0):right_ef[0]+(dx/2)]
+
     else:
       centered_roi_pointer = current_frame[max(right_ef[1]-(dy/2),0):left_ef[1]+(dy/2), max(left_ef[0]-(dx/2),0):right_ef[0]+(dx/2)]
-
-  
-  #print ("Y diff ",(left_ef[1]-(dy/2)) - (right_ef[1]+(dy/2)))
-
-  #print ("X diff " ,(left_ef[0]-(dx/2))-(right_ef[0]+(dx/2)))
-  
-
+      centered_roi_pointer_test_bk = frame_test_bk[max(right_ef[1]-(dy/2),0):left_ef[1]+(dy/2), max(left_ef[0]-(dx/2),0):right_ef[0]+(dx/2)]
 
   centered_roi = centered_roi_pointer.copy()
 
@@ -292,8 +293,6 @@ while camera != 0:
 
   bk = centered_roi.copy()
 
-  frame_test_bk = current_frame.copy()
-  centered_roi_pointer_test_bk = frame_test_bk[left_ef[1]-offset:left_ef[1]+dy, left_ef[0]-offset:left_ef[0]+dx]
 
   for i in range(len(pixels) - ellipse_size):
     a = pixels[i:i+ellipse_size]
@@ -309,25 +308,15 @@ while camera != 0:
       stepList = []
      
     if (ellipse[1][0]<=ellipse_size or ellipse[1][1]<=ellipse_size):
-      #if inMean(ellipse):  
-       # if (ellipse[2]>upper[0]):# and ellipse[2]<upper[1]):# or (ellipse[2]>lower[0] and ellipse[2]<lower[1]):
-        #  stepList.append(ellipse)
 
       stepList.append(ellipse)
-      cv2.ellipse(bk, ellipse, (0,255,0), 2)
-      #cv2.ellipse(bk, ell, (0,0,255), 2) 
-
+      cv2.ellipse(bk, ellipse, (0,0,255), 2)
       cv2.ellipse(centered_roi_pointer_test_bk, ellipse, (255,0,0), 2)
-
-      #cv2.ellipse(centered_roi_pointer,ellipse,(0,255,0),2)
-
-      #  else:
-       #   cv2.ellipse(bk,ellipse,(255,0,0),2)
-
     
     cv2.imshow('bk', bk)
+    cv2.moveWindow("bk", 1800,0)
 
-    #cv2.waitKey(0)
+    #cv2.waitKey(50)
     bk = centered_roi.copy()
 
   mediumEllipse, best_list = meanEllipse(ellipses)
@@ -365,7 +354,7 @@ while camera != 0:
   cv2.imshow('original frame', current_frame)
   cv2.imshow('all ellipses', frame_test_bk)
   cv2.moveWindow("original frame", 1200,0)
-  cv2.moveWindow("all ellipses", 500,500)
+  cv2.moveWindow("all ellipses", 560,0)
 
   cv2.waitKey(1)
 
